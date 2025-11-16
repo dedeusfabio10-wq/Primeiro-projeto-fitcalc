@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 
 // Na Vercel, configure esta variável de ambiente com sua Chave de Acesso do Web3Forms
 // para o formulário de captura de leads.
-const WEB3FORMS_ACCESS_KEY = process.env.WEB3FORMS_ACCESS_KEY || "e54addd5-be36-4fdc-ad35-014f3c1ba81c"; // Chave de exemplo
+const WEB3FORMS_ACCESS_KEY = process.env.WEB3FORMS_ACCESS_KEY!;
 
 interface EmailCaptureProps {
   onSuccess: () => void;
