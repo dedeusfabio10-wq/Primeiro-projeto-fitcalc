@@ -4,8 +4,11 @@ import HomePage from './pages/HomePage';
 import FormPage from './pages/FormPage';
 import ResultPage from './pages/ResultPage';
 import PlanPage from './pages/PlanPage';
+import PaymentPage from './pages/PaymentPage';
 import Header from './components/Header';
 import Footer from './components/Footer';
+import PaymentSuccessPage from './pages/PaymentSuccessPage';
+import PaymentFailurePage from './pages/PaymentFailurePage';
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -28,6 +31,9 @@ const App: React.FC = () => {
             <Route path="/" element={<HomePage />} />
             <Route path="/form" element={<FormPage />} />
             <Route path="/resultado" element={<ResultPage />} />
+            <Route path="/pagamento" element={<PaymentPage />} />
+            <Route path="/payment/success" element={<PaymentSuccessPage />} />
+            <Route path="/payment/failure" element={<PaymentFailurePage />} />
             <Route path="/plano" element={<PlanPage />} />
           </Routes>
         </main>

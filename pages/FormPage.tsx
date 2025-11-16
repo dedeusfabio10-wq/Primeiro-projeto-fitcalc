@@ -67,9 +67,10 @@ const FormPage: React.FC = () => {
   
   const InputField: React.FC<{ name: keyof FormData, label: string, type?: string, placeholder?: string }> = ({ name, label, type = 'number', placeholder }) => (
     <div>
-        <label htmlFor={name} className="block text-sm font-medium text-gray-700">{label}</label>
+        {/* FIX: Cast `name` to string for `id` and `htmlFor` props as `keyof FormData` is being inferred as a wider type. */}
+        <label htmlFor={name as string} className="block text-sm font-medium text-gray-700">{label}</label>
         <input
-            id={name}
+            id={name as string}
             type={type}
             placeholder={placeholder}
             {...register(name)}
@@ -81,9 +82,10 @@ const FormPage: React.FC = () => {
 
   const SelectField: React.FC<{ name: keyof FormData, label: string, options: Record<string, string> }> = ({ name, label, options }) => (
     <div>
-        <label htmlFor={name} className="block text-sm font-medium text-gray-700">{label}</label>
+        {/* FIX: Cast `name` to string for `id` and `htmlFor` props as `keyof FormData` is being inferred as a wider type. */}
+        <label htmlFor={name as string} className="block text-sm font-medium text-gray-700">{label}</label>
         <select
-            id={name}
+            id={name as string}
             {...register(name)}
             className={`mt-1 block w-full px-3 py-3 bg-white border ${errors[name] ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500 sm:text-sm`}
         >
