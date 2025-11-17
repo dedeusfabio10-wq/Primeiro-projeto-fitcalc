@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import Card from '../components/Card';
 
 const PaymentPage: React.FC = () => {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -15,16 +14,28 @@ const PaymentPage: React.FC = () => {
   const handlePayment = async () => {
     setIsProcessing(true);
     setError(null);
-    console.log("Iniciando processo de pagamento real com Mercado Pago...");
+    console.log("Iniciando processo de pagamento com Mercado Pago...");
+
+    const baseUrl = window.location.origin;
 
     try {
-      // 1. Chama a API backend para criar a preferência de pagamento.
-      const response = await fetch('/api/payment/createPreference', {
+      // 1. Chama a nova API para criar a preferência de pagamento.
+      const response = await fetch('/api/payment/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ name, email }),
+        body: JSON.stringify({
+          title: 'FitCalc Premium - Plano Personalizado',
+          price: 7.90,
+          name, 
+          email,
+          // O /#/ é crucial porque o app usa HashRouter.
+          // Passa os parâmetros de busca para que fiquem disponíveis nas páginas de sucesso/falha.
+          success: `${baseUrl}/#/payment/success?${searchParams.toString()}`,
+          failure: `${baseUrl}/#/payment/failure?${searchParams.toString()}`,
+          pending: `${baseUrl}/#/payment/failure?${searchParams.toString()}`,
+        }),
       });
 
       if (!response.ok) {
@@ -89,7 +100,7 @@ const PaymentPage: React.FC = () => {
           >
             {isProcessing ? (
                 <>
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
