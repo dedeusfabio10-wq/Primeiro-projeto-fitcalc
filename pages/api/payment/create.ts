@@ -11,26 +11,26 @@ export default async function handler(req, res) {
   });
 
   try {
-    const body = req.body;
+    const { title, price, name, email, success, failure, pending } = req.body;
 
     // Create the preference object with item details, payer info, and callback URLs.
     const preference = {
       items: [
         {
-          title: body.title,
+          title: title,
           quantity: 1,
           currency_id: "BRL",
-          unit_price: body.price,
+          unit_price: Number(price),
         },
       ],
       payer: {
-          name: body.name,
-          email: body.email,
+          name: name,
+          email: email,
       },
       back_urls: {
-        success: body.success,
-        failure: body.failure,
-        pending: body.pending,
+        success: success,
+        failure: failure,
+        pending: pending,
       },
       auto_return: "approved",
     };
@@ -38,9 +38,10 @@ export default async function handler(req, res) {
     const response = await mercadopago.preferences.create(preference);
 
     // Return the preference ID and the init_point URL for checkout redirection.
+    // The init_point is crucial for the frontend to work correctly.
     return res.status(200).json({ id: response.body.id, init_point: response.body.init_point });
   } catch (error) {
-    console.error("ERRO MERCADO PAGO:", error);
+    console.error(error);
     return res.status(500).json({ error: "Erro ao criar preferência" });
   }
 }
