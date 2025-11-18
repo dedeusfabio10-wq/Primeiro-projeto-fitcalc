@@ -1,9 +1,5 @@
 import React, { useState } from 'react';
 
-// Na Vercel, configure esta variável de ambiente com sua Chave de Acesso do Web3Forms
-// para o formulário de captura de leads.
-const WEB3FORMS_ACCESS_KEY = process.env.WEB3FORMS_ACCESS_KEY!;
-
 interface EmailCaptureProps {
   onSuccess: () => void;
   onClose: () => void;
@@ -27,32 +23,29 @@ const EmailCapture: React.FC<EmailCaptureProps> = ({ onSuccess, onClose }) => {
     try {
       localStorage.setItem('user_email', email);
       
-      const formData = new FormData();
-      formData.append("access_key", WEB3FORMS_ACCESS_KEY);
-      formData.append("email", email);
-      formData.append("name", name || "Não informado");
-      formData.append("subject", "Novo lead - Plano 7 Dias FitCalc");
-      formData.append("message", `O usuário ${email} solicitou o plano personalizado.`);
-
-      const res = await fetch("https://api.web3forms.com/submit", {
+      // Call our own backend API instead of Web3Forms directly
+      const res = await fetch("/api/submit-form", {
         method: "POST",
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, name }),
       });
 
       const data = await res.json();
 
+      // Our API is designed to always return success to not block the user.
       if (data.success) {
-        console.log("Web3Forms submitted successfully");
+        console.log("Backend handled form submission:", data.message);
         onSuccess();
       } else {
-        console.error("Web3Forms error:", data.message);
-        // Em caso de falha no envio do e-mail, ainda permitimos o usuário avançar.
-        // O e-mail é um bônus, o pagamento é o principal.
-        onSuccess();
+        // This case shouldn't happen with the current backend logic, but it's good practice.
+        console.error("Backend error:", data.error);
+        onSuccess(); // Still proceed
       }
     } catch (err) {
-      console.error(err);
-      // Se a API estiver offline, não impedimos o usuário de pagar.
+      console.error("Error communicating with our backend:", err);
+      // If our API is offline, we still shouldn't block the user.
       onSuccess();
     }
   };

@@ -20,7 +20,7 @@ const PaymentPage: React.FC = () => {
 
     try {
       // 1. Chama a nova API para criar a preferência de pagamento.
-      const response = await fetch('/api/payment/create', {
+      const response = await fetch('/api/create-payment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

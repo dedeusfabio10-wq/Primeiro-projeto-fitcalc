@@ -1,47 +1,12 @@
-import mercadopago from "mercadopago";
+import React from 'react';
 
-export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
+// This file is part of a client-side route structure.
+// It must export a valid React component to prevent build errors.
+// The server-side logic was correctly moved to /api/create-payment.ts.
+const HarmlessComponent: React.FC = () => {
+    // This component renders nothing and is intended to resolve a build issue
+    // caused by this file's existence in the 'pages' directory.
+    return null;
+};
 
-  // Configure Mercado Pago with the access token from environment variables.
-  mercadopago.configure({
-    access_token: process.env.MERCADOPAGO_ACCESS_TOKEN,
-  });
-
-  try {
-    const { title, price, name, email, success, failure, pending } = req.body;
-
-    // Create the preference object with item details, payer info, and callback URLs.
-    const preference = {
-      items: [
-        {
-          title: title,
-          quantity: 1,
-          currency_id: "BRL",
-          unit_price: Number(price),
-        },
-      ],
-      payer: {
-          name: name,
-          email: email,
-      },
-      back_urls: {
-        success: success,
-        failure: failure,
-        pending: pending,
-      },
-      auto_return: "approved",
-    };
-
-    const response = await mercadopago.preferences.create(preference);
-
-    // Return the preference ID and the init_point URL for checkout redirection.
-    // The init_point is crucial for the frontend to work correctly.
-    return res.status(200).json({ id: response.body.id, init_point: response.body.init_point });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ error: "Erro ao criar preferência" });
-  }
-}
+export default HarmlessComponent;
