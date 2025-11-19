@@ -12,56 +12,69 @@ export default async function handler(req, res) {
 
   // 2. Valida se a chave de acesso do Mercado Pago está configurada no servidor
   if (!accessToken) {
-    console.error("Erro de configuração do servidor: MERCADOPAGO_ACCESS_TOKEN não está definido.");
-    return res.status(500).json({ error: "O gateway de pagamento não está configurado." });
+    console.error("Erro: MERCADOPAGO_ACCESS_TOKEN não configurado.");
+    return res.status(500).json({ error: "Erro de configuração no servidor (Token ausente). Faça um Redeploy na Vercel." });
   }
 
   try {
     const { title, price, name, email } = req.body;
 
-    // 3. Valida se todos os dados necessários foram recebidos na requisição
+    // 3. Valida dados básicos
     if (!price || !email) {
-      return res.status(400).json({ error: 'Faltam detalhes obrigatórios (preço ou email).' });
+      return res.status(400).json({ error: 'Dados incompletos: email ou preço faltando.' });
     }
 
-    // 4. Inicializa o cliente do Mercado Pago
     const client = new MercadoPagoConfig({ accessToken });
     const payment = new Payment(client);
 
-    // 5. Cria o pagamento PIX Específico
-    const paymentResponse = await payment.create({
-      body: {
-        transaction_amount: Number(price),
-        description: title || 'FitCalc Premium',
-        payment_method_id: 'pix',
-        payer: {
-          email: email,
-          first_name: name || 'Cliente',
-        },
+    // Tratamento do Nome (Mercado Pago prefere first_name e last_name separados)
+    const nameParts = name ? name.trim().split(' ') : ['Cliente'];
+    const firstName = nameParts[0];
+    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'Premium';
+
+    const paymentData = {
+      transaction_amount: Number(parseFloat(price).toFixed(2)),
+      description: title || 'FitCalc Premium',
+      payment_method_id: 'pix',
+      payer: {
+        email: email,
+        first_name: firstName,
+        last_name: lastName,
       },
-    });
+    };
 
-    // 6. Extrai os dados do QR Code da resposta
-    const pointOfInteraction = paymentResponse.point_of_interaction;
-    
-    if (pointOfInteraction && pointOfInteraction.transaction_data) {
-        const qrCodeBase64 = pointOfInteraction.transaction_data.qr_code_base64;
-        const qrCodeCopyPaste = pointOfInteraction.transaction_data.qr_code;
-        const paymentId = paymentResponse.id;
+    console.log("Iniciando pagamento PIX...", JSON.stringify(paymentData));
 
-        return res.status(200).json({ 
-            success: true,
-            paymentId: paymentId,
-            qrCodeBase64: qrCodeBase64,
-            qrCodeCopyPaste: qrCodeCopyPaste
-        });
-    } else {
-        console.error('Dados do PIX não encontrados na resposta:', paymentResponse);
-        return res.status(500).json({ error: 'Falha ao gerar QR Code do PIX.' });
+    // 4. Cria o pagamento
+    const paymentResponse = await payment.create({ body: paymentData });
+
+    // 5. Verifica e retorna o QR Code
+    if (paymentResponse && paymentResponse.point_of_interaction) {
+        const transactionData = paymentResponse.point_of_interaction.transaction_data;
+        
+        if (transactionData) {
+            return res.status(200).json({ 
+                success: true,
+                paymentId: paymentResponse.id,
+                qrCodeBase64: transactionData.qr_code_base64,
+                qrCodeCopyPaste: transactionData.qr_code
+            });
+        }
     }
 
-  } catch (error) {
+    console.error('Resposta inesperada do Mercado Pago:', paymentResponse);
+    return res.status(500).json({ error: 'O Mercado Pago não retornou o QR Code.', details: JSON.stringify(paymentResponse) });
+
+  } catch (error: any) {
     console.error('Erro ao criar pagamento PIX:', error);
-    return res.status(500).json({ error: 'Falha ao processar pagamento PIX.' });
+    // Retorna a mensagem real do erro para o frontend ajudar no debug
+    const errorMessage = error.message || 'Erro desconhecido';
+    const errorDetails = error.cause ? JSON.stringify(error.cause) : (error.stack || '');
+    
+    return res.status(500).json({ 
+        error: 'Falha ao processar pagamento PIX.', 
+        details: errorMessage,
+        raw: errorDetails 
+    });
   }
 }
