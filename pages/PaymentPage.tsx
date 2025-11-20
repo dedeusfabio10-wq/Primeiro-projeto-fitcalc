@@ -15,6 +15,7 @@ const PaymentPage: React.FC = () => {
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const [pixData, setPixData] = useState<PixData | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
 
@@ -65,6 +66,7 @@ const PaymentPage: React.FC = () => {
   const handleGeneratePix = async () => {
     setIsProcessing(true);
     setError(null);
+    setErrorDetails(null);
     
     try {
       const response = await fetch('/api/create-payment', {
@@ -83,9 +85,9 @@ const PaymentPage: React.FC = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        // Exibe erro detalhado se disponível
-        const msg = data.details ? `${data.error} (${data.details})` : (data.error || 'Falha ao gerar PIX');
-        throw new Error(msg);
+        // Armazena detalhes técnicos se houver
+        if (data.details) setErrorDetails(data.details);
+        throw new Error(data.error || 'Falha ao gerar PIX');
       }
 
       if (data.success && data.qrCodeBase64) {
@@ -150,10 +152,25 @@ const PaymentPage: React.FC = () => {
                 >
                     {isProcessing ? 'Gerando PIX...' : 'Gerar PIX e Pagar'}
                 </button>
+                
                 {error && (
-                    <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
-                        <p className="text-sm text-center text-red-600 font-medium">{error}</p>
-                        <p className="text-xs text-center text-red-400 mt-1">Se o erro persistir, verifique se as chaves do Mercado Pago estão corretas na Vercel.</p>
+                    <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg animate-pulse-slow">
+                        <div className="flex items-start">
+                            <svg className="h-5 w-5 text-red-500 mt-0.5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <div>
+                                <p className="text-sm font-bold text-red-700">{error}</p>
+                                {errorDetails && errorDetails.includes('UNAUTHORIZED') && (
+                                    <div className="mt-2 text-xs text-red-600 bg-red-100 p-2 rounded">
+                                        <strong>Dica de Solução:</strong> O Mercado Pago recusou a credencial. 
+                                        <br/>1. Verifique se a variável <code>MERCADOPAGO_ACCESS_TOKEN</code> na Vercel não tem espaços vazios ou aspas.
+                                        <br/>2. Confirme se você copiou o "Access Token" de Produção (começa com APP_USR-...).
+                                    </div>
+                                )}
+                                <p className="text-xs text-red-500 mt-2 break-all opacity-75">Detalhe técnico: {errorDetails || 'Consulte os logs da Vercel.'}</p>
+                            </div>
+                        </div>
                     </div>
                 )}
                 

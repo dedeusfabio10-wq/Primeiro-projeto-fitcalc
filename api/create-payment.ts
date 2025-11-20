@@ -1,5 +1,6 @@
 
 import { MercadoPagoConfig, Payment } from 'mercadopago';
+import crypto from 'crypto';
 
 export default async function handler(req, res) {
   // 1. Permite apenas requisições POST
@@ -8,12 +9,19 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
+  // Limpeza e validação do Token
+  let accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
 
-  // 2. Valida se a chave de acesso do Mercado Pago está configurada no servidor
   if (!accessToken) {
     console.error("Erro: MERCADOPAGO_ACCESS_TOKEN não configurado.");
     return res.status(500).json({ error: "Erro de configuração no servidor (Token ausente). Faça um Redeploy na Vercel." });
+  }
+
+  // Remove espaços em branco nas pontas
+  accessToken = accessToken.trim();
+  // Remove aspas extras se houver (erro comum ao copiar/colar)
+  if ((accessToken.startsWith('"') && accessToken.endsWith('"')) || (accessToken.startsWith("'") && accessToken.endsWith("'"))) {
+      accessToken = accessToken.slice(1, -1);
   }
 
   try {
@@ -24,7 +32,11 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Dados incompletos: email ou preço faltando.' });
     }
 
-    const client = new MercadoPagoConfig({ accessToken });
+    const client = new MercadoPagoConfig({ 
+        accessToken,
+        options: { timeout: 10000 }
+    });
+    
     const payment = new Payment(client);
 
     // Tratamento do Nome (Mercado Pago prefere first_name e last_name separados)
@@ -43,10 +55,16 @@ export default async function handler(req, res) {
       },
     };
 
-    console.log("Iniciando pagamento PIX...", JSON.stringify(paymentData));
+    // Gera uma chave de idempotência única para evitar pagamentos duplicados se o usuário clicar várias vezes
+    const idempotencyKey = crypto.randomUUID();
+
+    console.log(`Iniciando pagamento PIX para ${email} (Token prefix: ${accessToken.substring(0, 5)}...)`);
 
     // 4. Cria o pagamento
-    const paymentResponse = await payment.create({ body: paymentData });
+    const paymentResponse = await payment.create({ 
+        body: paymentData,
+        requestOptions: { idempotencyKey: idempotencyKey }
+    });
 
     // 5. Verifica e retorna o QR Code
     if (paymentResponse && paymentResponse.point_of_interaction) {
@@ -67,12 +85,20 @@ export default async function handler(req, res) {
 
   } catch (error: any) {
     console.error('Erro ao criar pagamento PIX:', error);
-    // Retorna a mensagem real do erro para o frontend ajudar no debug
+    
+    // Mensagem de erro amigável
     const errorMessage = error.message || 'Erro desconhecido';
+    let userFriendlyError = 'Falha ao processar pagamento PIX.';
+    
+    // Identifica erro de autorização especificamente
+    if (errorMessage.includes('UNAUTHORIZED') || (error.status === 401)) {
+        userFriendlyError = 'Erro de Autenticação com o Mercado Pago. A chave de API (Access Token) parece estar inválida, expirada ou bloqueada.';
+    }
+
     const errorDetails = error.cause ? JSON.stringify(error.cause) : (error.stack || '');
     
     return res.status(500).json({ 
-        error: 'Falha ao processar pagamento PIX.', 
+        error: userFriendlyError, 
         details: errorMessage,
         raw: errorDetails 
     });
