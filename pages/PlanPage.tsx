@@ -1,3 +1,4 @@
+
 import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import Card from '../components/Card';
@@ -7,10 +8,6 @@ import {
     economicProfileOptions,
 } from '../types';
 import { getPlanData, PlanData } from '../services/planGenerator';
-
-// Declare external libraries loaded from CDN
-declare const html2canvas: any;
-declare const jsPDF: any;
 
 interface MealPlan {
   day: string;
@@ -75,28 +72,58 @@ const PlanPage: React.FC = () => {
         if (!input) return;
 
         setIsGeneratingPdf(true);
+
+        // Acessa as bibliotecas globais carregadas via CDN
+        const w = window as any;
+        const html2canvas = w.html2canvas;
+        const jspdfLib = w.jspdf;
+
+        if (!html2canvas || !jspdfLib) {
+            alert("As bibliotecas de PDF ainda estão carregando ou falharam. Por favor, recarregue a página e tente novamente.");
+            setIsGeneratingPdf(false);
+            return;
+        }
+
         try {
-            const canvas = await html2canvas(input, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+            // Detecta se é mobile para reduzir a qualidade e evitar crash de memória
+            const isMobile = window.innerWidth < 768;
+            
+            const canvas = await html2canvas(input, { 
+                scale: isMobile ? 1.5 : 2, // Reduz escala no mobile
+                backgroundColor: '#ffffff', 
+                useCORS: true,
+                logging: false 
+            });
+
             const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF.jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            
+            // Acessa o construtor corretamente (jspdf.jsPDF na versão UMD)
+            const { jsPDF } = jspdfLib;
+            const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            
             const pdfWidth = pdf.internal.pageSize.getWidth();
             const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+            
             let heightLeft = pdfHeight;
             let position = 0;
             const pageHeight = pdf.internal.pageSize.getHeight();
+            
             pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
             heightLeft -= pageHeight;
+            
             while (heightLeft > 0) {
               position = heightLeft - pdfHeight;
               pdf.addPage();
               pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
               heightLeft -= pageHeight;
             }
+            
             const fileName = `FitCalc_Plano_${planData.name ? planData.name.replace(/\s+/g, '_') : 'Personalizado'}.pdf`;
             pdf.save(fileName);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error generating PDF:", error);
-            alert("Ocorreu um erro ao gerar o PDF. Tente novamente.");
+            // Mostra o erro real para o usuário
+            alert(`Não foi possível gerar o PDF: ${error.message || error}. Tente recarregar a página.`);
         } finally {
             setIsGeneratingPdf(false);
         }
@@ -157,14 +184,15 @@ const PlanPage: React.FC = () => {
                   </div>
                 </div>
             </div>
-             <div className="text-center mt-12">
+             <div className="text-center mt-12 pb-12">
                  <button 
                     onClick={handleDownloadPdf}
                     disabled={isGeneratingPdf}
                     className="inline-block bg-gradient-to-r from-teal-500 to-cyan-600 text-white font-bold text-lg rounded-full px-10 py-4 shadow-lg hover:scale-105 transform transition-transform duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                  >
-                    {isGeneratingPdf ? 'Gerando PDF...' : 'Baixar Plano em PDF'}
+                    {isGeneratingPdf ? 'Gerando PDF (aguarde)...' : 'Baixar Plano em PDF'}
                  </button>
+                 <p className="text-xs text-gray-400 mt-2">Se o download não iniciar, tire prints da tela para salvar seu plano.</p>
                  <Link to="/form" className="block mt-6 text-teal-600 font-semibold hover:underline">
                     &larr; Voltar e calcular novamente
                 </Link>
